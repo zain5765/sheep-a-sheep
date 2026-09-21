@@ -26,7 +26,12 @@ npm run android:apk
 - [x] 7-slot tray, match 3  
 - [x] Level 1 kindergarten → Level 2 ~0.1%  
 - [x] Left + right side piles on Level 2  
-- [x] Undo / Shuffle / Remove via share unlock  
-- [x] Ad revive (1×)  
-- [x] Farm doodle tile icons (sheep / cabbage / grass set)  
+- [x] Dense L2 “villa” center bias  
+- [x] Undo / Shuffle / Remove via share unlock (Capacitor Share)  
+- [x] Ad / share revive (1×)  
+- [x] First-play tutorial  
+- [x] Haptics on native  
+- [x] Country → province / state teams  
+- [x] Farm doodle tile icons + FX + SFX  
+
 Reference: [羊了个羊 on TapTap](https://www.taptap.cn/app/238441)

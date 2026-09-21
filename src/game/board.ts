@@ -14,7 +14,6 @@ function makeEmptyBoard(grid: number): Cell[][] {
 
 function buildTypeBag(total: number, typeCount: number, rng: () => number): TileType[] {
   const types = TILE_TYPES.slice(0, typeCount);
-  // Equal distribution in triples so every type count is multiple of 3
   const unit = types.length * MATCH_SIZE;
   let n = total;
   if (n % unit !== 0) n = (Math.floor(n / unit) + 1) * unit;
@@ -35,21 +34,33 @@ function placeBatch(
   maxY: number,
   cell: number,
   rng: () => number,
+  /** Bias toward center like the original “大别墅” dense core */
+  centerBias = 0,
 ): void {
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
   const used = new Set<string>();
+
   for (const tile of tiles) {
     let gx = 0;
     let gy = 0;
     let key = '';
     let tries = 0;
     do {
-      gx = Math.floor(rng() * (maxX - minX + 1)) + minX;
-      gy = Math.floor(rng() * (maxY - minY + 1)) + minY;
+      if (centerBias > 0 && rng() < centerBias) {
+        const spreadX = Math.max(1, Math.floor((maxX - minX) * 0.35));
+        const spreadY = Math.max(1, Math.floor((maxY - minY) * 0.35));
+        gx = Math.round(midX + (rng() * 2 - 1) * spreadX);
+        gy = Math.round(midY + (rng() * 2 - 1) * spreadY);
+      } else {
+        gx = Math.floor(rng() * (maxX - minX + 1)) + minX;
+        gy = Math.floor(rng() * (maxY - minY + 1)) + minY;
+      }
       gx = Math.max(0, Math.min(gx, chess.length - 3));
       gy = Math.max(0, Math.min(gy, chess.length - 3));
       key = `${gx},${gy}`;
       tries++;
-    } while (used.has(key) && tries < 80);
+    } while (used.has(key) && tries < 100);
     used.add(key);
 
     tile.gx = gx;
@@ -59,7 +70,6 @@ function placeBatch(
     tile.pile = -1;
     tile.inHold = false;
 
-    // Layer = 1 + max layer of overlapping cells (3×3 footprint)
     let maxLayer = 0;
     const x0 = Math.max(gx - 2, 0);
     const y0 = Math.max(gy - 2, 0);
@@ -70,7 +80,6 @@ function placeBatch(
         const top = chess[i][j].blocks[chess[i][j].blocks.length - 1];
         if (top && top.uid !== tile.uid) {
           maxLayer = Math.max(maxLayer, top.layer);
-          tile.layer = maxLayer + 1; // provisional
         }
       }
     }
@@ -89,7 +98,7 @@ export function generateBoard(level: LevelConfig, seed: string): {
   pileTops: number[];
 } {
   nextUid = 1;
-  const rng = createPRNG(`${seed}-L${level.id}-v3`);
+  const rng = createPRNG(`${seed}-L${level.id}-v5`);
   const chess = makeEmptyBoard(level.grid);
 
   const pileTotal = level.pileSizes.reduce((a, b) => a + b, 0);
@@ -112,7 +121,7 @@ export function generateBoard(level: LevelConfig, seed: string): {
 
   let pos = 0;
 
-  // Side piles first (like original left/right queues)
+  // Side / “blind box” piles (left + right queues)
   const pileTops: number[] = level.pileSizes.map(() => 0);
   level.pileSizes.forEach((size, pileIdx) => {
     for (let i = 0; i < size; i++) {
@@ -121,35 +130,39 @@ export function generateBoard(level: LevelConfig, seed: string): {
       t.layer = i + 1;
       t.gx = -1;
       t.gy = -1;
-      // Pixel pos filled by UI for pile stacks
       t.x = 0;
       t.y = 0;
     }
     pileTops[pileIdx] = size;
   });
 
-  // Main stacked batches with shrinking borders (yulegeyu-style)
   let minX = 0;
   let maxX = level.grid - 3;
   let minY = 0;
   let maxY = level.grid - 3;
-  const borderStep = 1;
   let left = tiles.length - pos;
+  const hard = level.id >= 2;
 
   for (let batch = 0; batch < level.levelBatches && left > 0; batch++) {
     let count = Math.min(level.tilesPerBatch, left);
     if (batch === level.levelBatches - 1) count = left;
 
-    if (batch > 0 && borderStep > 0) {
+    if (batch > 0) {
+      const step = hard ? 1 : 1;
       const dir = batch % 4;
-      if (dir === 0) minX = Math.min(minX + borderStep, maxX - 2);
-      else if (dir === 1) maxY = Math.max(maxY - borderStep, minY + 2);
-      else if (dir === 2) minY = Math.min(minY + borderStep, maxY - 2);
-      else maxX = Math.max(maxX - borderStep, minX + 2);
+      if (dir === 0) minX = Math.min(minX + step, maxX - 2);
+      else if (dir === 1) maxY = Math.max(maxY - step, minY + 2);
+      else if (dir === 2) minY = Math.min(minY + step, maxY - 2);
+      else maxX = Math.max(maxX - step, minX + 2);
     }
 
+    // Later batches = denser center villa (original L2 feel)
+    const centerBias = hard
+      ? Math.min(0.85, 0.25 + batch * 0.08)
+      : Math.min(0.45, 0.1 + batch * 0.05);
+
     const batchTiles = tiles.slice(pos, pos + count);
-    placeBatch(batchTiles, chess, minX, minY, maxX, maxY, level.cell, rng);
+    placeBatch(batchTiles, chess, minX, minY, maxX, maxY, level.cell, rng, centerBias);
     pos += count;
     left -= count;
   }
@@ -157,7 +170,6 @@ export function generateBoard(level: LevelConfig, seed: string): {
   return { tiles, pileTops };
 }
 
-/** Only uncovered board tiles / top of each pile / hold tiles are clickable. */
 export function computeClickable(tiles: TileData[]): Map<number, boolean> {
   const flags = new Map<number, boolean>();
   const board = tiles.filter((t) => !t.removed && !t.inSlot && t.pile < 0 && !t.inHold);
@@ -173,10 +185,8 @@ export function computeClickable(tiles: TileData[]): Map<number, boolean> {
     flags.set(tile.uid, !blocked);
   }
 
-  // Hold tiles always clickable
   for (const t of hold) flags.set(t.uid, true);
 
-  // Only the front (highest index / top) of each pile
   const byPile = new Map<number, TileData[]>();
   for (const t of tiles) {
     if (t.removed || t.inSlot || t.pile < 0 || t.inHold) continue;
@@ -193,7 +203,6 @@ export function computeClickable(tiles: TileData[]): Map<number, boolean> {
 }
 
 function overlapsFootprint(a: TileData, b: TileData): boolean {
-  // 3×3 grid footprint overlap (same as original chess logic)
   return Math.abs(a.gx - b.gx) < 3 && Math.abs(a.gy - b.gy) < 3;
 }
 

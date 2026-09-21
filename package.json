@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "i18n:check": "node --experimental-strip-types scripts/check-i18n.mjs",
     "preview": "vite preview",
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
@@ -20,6 +21,8 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3"
   }
 }

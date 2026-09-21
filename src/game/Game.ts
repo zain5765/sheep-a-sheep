@@ -225,34 +225,98 @@ export class Game {
     this.emit();
   }
 
-  clickTile(uid: number): void {
-    if (this.status !== 'playing') return;
+  clickTile(uid: number): {
+    ok: boolean;
+    matched: boolean;
+    won: boolean;
+    lost: boolean;
+    pendingClearUids: number[];
+  } {
+    const fail = { ok: false, matched: false, won: false, lost: false, pendingClearUids: [] as number[] };
+    if (this.status !== 'playing') return fail;
     const tile = this.tiles.find((t) => t.uid === uid);
-    if (!tile || tile.removed || tile.inSlot) return;
-    if (!computeClickable(this.tiles).get(uid)) return;
+    if (!tile || tile.removed || tile.inSlot) return fail;
+    if (!computeClickable(this.tiles).get(uid)) return fail;
 
-    const result = this.slots.add(tile);
-    if (!result.success) return;
+    const result = this.slots.add(tile, { deferClear: true });
+    if (!result.success) return fail;
 
+    const pending = result.pendingClearUids;
+    if (pending.length > 0) {
+      // Show tile in tray first; UI will commit clears after pop anim
+      this.emit();
+      return { ok: true, matched: true, won: false, lost: false, pendingClearUids: pending };
+    }
+
+    return this.finishAfterAdd(result.isFull);
+  }
+
+  /** Call after tray match-pop animation. */
+  commitMatchClears(): { won: boolean; lost: boolean } {
+    this.slots.commitPendingClears();
     const remaining = this.tiles.filter((t) => !t.removed && !t.inSlot).length;
+    let won = false;
+    let lost = false;
     if (remaining === 0 && this.slots.length === 0) {
       this.status = 'won';
+      won = true;
       if (this.levelIndex >= 1 && this.region && this.country) {
         const map = loadRanks();
         const key = teamKey(this.country, this.region);
         map[key] = (map[key] || 0) + 1;
         saveRanks(map);
       }
-    } else if (result.isFull || this.slots.length >= MAX_SLOTS) {
+    } else if (this.slots.length >= MAX_SLOTS) {
       this.status = 'lost';
+      lost = true;
     }
+    this.emit();
+    return { won, lost };
+  }
+
+  private finishAfterAdd(isFull: boolean): {
+    ok: boolean;
+    matched: boolean;
+    won: boolean;
+    lost: boolean;
+    pendingClearUids: number[];
+  } {
+    const remaining = this.tiles.filter((t) => !t.removed && !t.inSlot).length;
+    let won = false;
+    let lost = false;
+    if (remaining === 0 && this.slots.length === 0) {
+      this.status = 'won';
+      won = true;
+      if (this.levelIndex >= 1 && this.region && this.country) {
+        const map = loadRanks();
+        const key = teamKey(this.country, this.region);
+        map[key] = (map[key] || 0) + 1;
+        saveRanks(map);
+      }
+    } else if (isFull || this.slots.length >= MAX_SLOTS) {
+      this.status = 'lost';
+      lost = true;
+    }
+    this.emit();
+    return { ok: true, matched: false, won, lost, pendingClearUids: [] };
+  }
+
+  /** Undo without emit — returns tiles that left the tray (for fly-back). */
+  undoLeave(): TileData[] | null {
+    if (this.status !== 'playing' || this.undoLeft <= 0 || !this.slots.canUndo()) return null;
+    const leaving = this.slots.undo(this.tiles);
+    if (!leaving || leaving.length === 0) return null;
+    this.undoLeft -= 1;
+    return leaving;
+  }
+
+  emitState(): void {
     this.emit();
   }
 
   undo(): boolean {
-    if (this.status !== 'playing' || this.undoLeft <= 0 || !this.slots.canUndo()) return false;
-    if (!this.slots.undo(this.tiles)) return false;
-    this.undoLeft -= 1;
+    const leaving = this.undoLeave();
+    if (!leaving) return false;
     this.emit();
     return true;
   }
