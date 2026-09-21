@@ -1,6 +1,14 @@
 import './style.css';
 import { Game, type PropKind } from './game/Game';
-import { MAX_SLOTS, REGIONS, TILE_DEFS, type RegionId } from './game/config';
+import {
+  COUNTRY_IDS,
+  MAX_SLOTS,
+  TILE_DEFS,
+  provincesFor,
+  type CountryId,
+  type RegionId,
+} from './game/config';
+import { flockSceneHtml } from './game/flock';
 import { tileIconHtml } from './game/icons';
 import type { TileData } from './game/types';
 
@@ -23,7 +31,7 @@ function render(): void {
   app.innerHTML = '';
 
   if (state.screen === 'menu') {
-    app.appendChild(renderMenu(state.region));
+    app.appendChild(renderMenu(state.country, state.region));
     return;
   }
   if (state.screen === 'rank') {
@@ -174,33 +182,64 @@ function render(): void {
   app.appendChild(shell);
 }
 
-function renderMenu(region: RegionId | null): HTMLDivElement {
-  const menu = el('div', 'menu');
+function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDivElement {
+  const provinces = country ? provincesFor(country) : [];
+  const menu = el('div', 'menu splash');
   menu.innerHTML = `
-    <div class="flock" aria-hidden="true"></div>
-    <div class="menu-hero">
-      <div class="sheep-bubble">${tileIconHtml('sheep')}</div>
-      <h1>Sheep a Sheep</h1>
-      <p class="tagline">Level 1 easy · Level 2 almost impossible</p>
-      <p class="hint">Match 3 in the 7-slot tray. Plan ahead — success = order + props + 999 tries.</p>
+    <div class="splash-field" aria-hidden="true">${flockSceneHtml()}</div>
+    <div class="splash-brand">
+      <h1 class="brand-title">
+        <span class="brand-cn">羊了个羊</span>
+        <span class="brand-en">Sheep a Sheep</span>
+      </h1>
     </div>
-    <label class="region-label" for="region">Your team needs you</label>
-    <select id="region" class="region-select">
-      <option value="">Pick your region…</option>
-      ${REGIONS.map((r) => `<option value="${r}" ${region === r ? 'selected' : ''}>${r}</option>`).join('')}
-    </select>
-    ${region ? `<div class="team-bar">Playing for <strong>${region}</strong></div>` : ''}
-    <button class="btn play" type="button">Start Game</button>
-    <button class="ghost-link" type="button" data-rank>Region clears</button>
+    <div class="splash-ui">
+      <p class="splash-sub">Level 1 kindergarten · Level 2 only 0.1% clear</p>
+      <p class="region-label">Your province / state team needs you</p>
+      <label class="region-label" for="country">1. Country</label>
+      <select id="country" class="region-select" aria-label="Country">
+        <option value="">Pick your country…</option>
+        ${COUNTRY_IDS.map(
+          (c) => `<option value="${c}" ${country === c ? 'selected' : ''}>${c}</option>`,
+        ).join('')}
+      </select>
+      <label class="region-label" for="province">2. Province / State</label>
+      <select id="province" class="region-select" aria-label="Province or State" ${country ? '' : 'disabled'}>
+        <option value="">${country ? 'Pick your province / state…' : 'Select country first…'}</option>
+        ${provinces
+          .map((p) => `<option value="${p}" ${region === p ? 'selected' : ''}>${p}</option>`)
+          .join('')}
+      </select>
+      ${
+        country && region
+          ? `<div class="team-bar">Playing for <strong>${region}</strong>, ${country}</div>`
+          : ''
+      }
+      <button class="btn play" type="button">Start Game</button>
+      <button class="ghost-link" type="button" data-rank>Province / State clears</button>
+    </div>
   `;
-  menu.querySelector<HTMLSelectElement>('#region')!.addEventListener('change', (e) => {
+  menu.querySelector<HTMLSelectElement>('#country')!.addEventListener('change', (e) => {
+    const v = (e.target as HTMLSelectElement).value as CountryId | '';
+    if (v) game.setCountry(v);
+  });
+  menu.querySelector<HTMLSelectElement>('#province')!.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value as RegionId | '';
     if (v) game.setRegion(v);
   });
   menu.querySelector('.play')!.addEventListener('click', () => {
-    if (!game.getState().region) {
+    const s = game.getState();
+    if (!s.country) {
       app.appendChild(
-        modal('Pick a region first', 'Join a team like the original province challenge.', [
+        modal('Pick a country first', 'Choose your country, then your province / state team.', [
+          { label: 'OK', primary: true, onClick: () => undefined },
+        ]),
+      );
+      return;
+    }
+    if (!s.region) {
+      app.appendChild(
+        modal('Pick a province / state', 'Join your local team like the original 省队 challenge.', [
           { label: 'OK', primary: true, onClick: () => undefined },
         ]),
       );
@@ -218,8 +257,8 @@ function renderRank(
   const page = el('div', 'menu rank-page');
   page.innerHTML = `
     <div class="sheep-bubble small">${tileIconHtml('sheep')}</div>
-    <h1>Region clears</h1>
-    <p class="tagline">Your province / state team needs you</p>
+    <h1>Province / State clears</h1>
+    <p class="tagline">${game.getState().country ? `${game.getState().country} local teams` : 'Your province / state team needs you'}</p>
     <ol class="rank-list">
       ${ranks
         .map(

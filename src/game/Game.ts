@@ -1,5 +1,14 @@
 import { computeClickable, generateBoard, shuffleTypes } from './board';
-import { HOLD_SIZE, LEVELS, MAX_SLOTS, type RegionId } from './config';
+import {
+  COUNTRIES,
+  HOLD_SIZE,
+  LEVELS,
+  MAX_SLOTS,
+  findCountryForProvince,
+  teamKey,
+  type CountryId,
+  type RegionId,
+} from './config';
 import { todaySeed } from './rng';
 import { SlotManager } from './slots';
 import type { GameStatus, LevelConfig, Screen, TileData } from './types';
@@ -28,11 +37,13 @@ export interface GameState {
   shuffleLeft: number;
   removeLeft: number;
   reviveLeft: number;
+  country: CountryId | null;
   region: RegionId | null;
   ranks: RankRow[];
   tryCount: number;
 }
 
+const COUNTRY_KEY = 'sheep_country';
 const REGION_KEY = 'sheep_region';
 const RANK_KEY = 'sheep_ranks';
 
@@ -48,6 +59,23 @@ function saveRanks(map: Record<string, number>): void {
   localStorage.setItem(RANK_KEY, JSON.stringify(map));
 }
 
+function loadSavedTeam(): { country: CountryId | null; region: RegionId | null } {
+  const savedCountry = localStorage.getItem(COUNTRY_KEY) as CountryId | null;
+  const savedRegion = localStorage.getItem(REGION_KEY) as RegionId | null;
+  if (savedCountry && savedCountry in COUNTRIES) {
+    const provinces = COUNTRIES[savedCountry] as readonly string[];
+    if (savedRegion && provinces.includes(savedRegion)) {
+      return { country: savedCountry, region: savedRegion };
+    }
+    return { country: savedCountry, region: null };
+  }
+  if (savedRegion) {
+    const country = findCountryForProvince(savedRegion);
+    if (country) return { country, region: savedRegion };
+  }
+  return { country: null, region: null };
+}
+
 export class Game {
   private screen: Screen = 'menu';
   private levelIndex = 0;
@@ -59,10 +87,16 @@ export class Game {
   private shuffleLeft = 0;
   private removeLeft = 0;
   private reviveLeft = 1;
-  private region: RegionId | null =
-    (localStorage.getItem(REGION_KEY) as RegionId | null) || null;
+  private country: CountryId | null;
+  private region: RegionId | null;
   private tryCount = 0;
   private listeners = new Set<() => void>();
+
+  constructor() {
+    const saved = loadSavedTeam();
+    this.country = saved.country;
+    this.region = saved.region;
+  }
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
@@ -79,26 +113,29 @@ export class Game {
 
   getRanks(): RankRow[] {
     const map = loadRanks();
-    // Seed fake competition so board looks alive
-    const seeded: RankRow[] = [
-      { region: 'Punjab', clears: (map['Punjab'] || 0) + 1284 },
-      { region: 'California', clears: (map['California'] || 0) + 1102 },
-      { region: 'Sindh', clears: (map['Sindh'] || 0) + 976 },
-      { region: 'Texas', clears: (map['Texas'] || 0) + 901 },
-      { region: 'New York', clears: (map['New York'] || 0) + 844 },
-      { region: 'Khyber Pakhtunkhwa', clears: (map['Khyber Pakhtunkhwa'] || 0) + 712 },
-      { region: 'Florida', clears: (map['Florida'] || 0) + 688 },
-      { region: 'Islamabad', clears: (map['Islamabad'] || 0) + 520 },
-    ];
-    if (this.region) {
+    const country = this.country ?? 'China';
+    const provinces = COUNTRIES[country] as readonly RegionId[];
+
+    // Seed a lively board for the selected country
+    const seeded: RankRow[] = provinces.slice(0, 8).map((region, i) => {
+      const key = teamKey(country, region);
+      const base = 18000 - i * 1400 - (region.length % 7) * 80;
+      return {
+        region,
+        clears: (map[key] || 0) + Math.max(800, base),
+      };
+    });
+
+    if (this.region && this.country) {
+      const key = teamKey(this.country, this.region);
       const yours = seeded.find((r) => r.region === this.region);
       if (yours) {
         yours.you = true;
-        yours.clears = (map[this.region] || 0) + (yours.clears - (map[this.region] || 0));
+        yours.clears = (map[key] || 0) + (yours.clears - (map[key] || 0));
       } else {
         seeded.push({
           region: this.region,
-          clears: (map[this.region] || 0) + 300,
+          clears: (map[key] || 0) + 4200,
           you: true,
         });
       }
@@ -124,13 +161,25 @@ export class Game {
       shuffleLeft: this.shuffleLeft,
       removeLeft: this.removeLeft,
       reviveLeft: this.reviveLeft,
+      country: this.country,
       region: this.region,
       ranks: this.getRanks(),
       tryCount: this.tryCount,
     };
   }
 
+  setCountry(country: CountryId): void {
+    this.country = country;
+    localStorage.setItem(COUNTRY_KEY, country);
+    this.region = null;
+    localStorage.removeItem(REGION_KEY);
+    this.emit();
+  }
+
   setRegion(region: RegionId): void {
+    if (!this.country) return;
+    const provinces = COUNTRIES[this.country] as readonly string[];
+    if (!provinces.includes(region)) return;
     this.region = region;
     localStorage.setItem(REGION_KEY, region);
     this.emit();
@@ -162,7 +211,6 @@ export class Game {
     this.tiles = tiles;
     this.slots.clear();
     this.status = 'playing';
-    // Same as original: props come from share (start at 0, unlock via share)
     this.undoLeft = 0;
     this.shuffleLeft = 0;
     this.removeLeft = 0;
@@ -170,7 +218,6 @@ export class Game {
     this.emit();
   }
 
-  /** Unlock one prop use after “share” (same gate as original). */
   unlockProp(kind: PropKind): void {
     if (kind === 'undo' && this.undoLeft < 1) this.undoLeft = 1;
     if (kind === 'shuffle' && this.shuffleLeft < 1) this.shuffleLeft = 1;
@@ -190,9 +237,10 @@ export class Game {
     const remaining = this.tiles.filter((t) => !t.removed && !t.inSlot).length;
     if (remaining === 0 && this.slots.length === 0) {
       this.status = 'won';
-      if (this.levelIndex >= 1 && this.region) {
+      if (this.levelIndex >= 1 && this.region && this.country) {
         const map = loadRanks();
-        map[this.region] = (map[this.region] || 0) + 1;
+        const key = teamKey(this.country, this.region);
+        map[key] = (map[key] || 0) + 1;
         saveRanks(map);
       }
     } else if (result.isFull || this.slots.length >= MAX_SLOTS) {

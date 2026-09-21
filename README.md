@@ -1,6 +1,6 @@
 # Sheep a Sheep
 
-Same core game as the viral stack-match hit: Level 1 easy → Level 2 hell, 7-slot match-3, share-for-props, ad revive, region ranking (Pakistan + USA).
+Same core game as the viral stack-match hit: Level 1 easy → Level 2 hell, 7-slot match-3, share-for-props, ad revive.
 
 ## Play
 
@@ -28,6 +28,5 @@ npm run android:apk
 - [x] Left + right side piles on Level 2  
 - [x] Undo / Shuffle / Remove via share unlock  
 - [x] Ad revive (1×)  
-- [x] Region team ranking (PK + US)  
 - [x] Farm doodle tile icons (sheep / cabbage / grass set)  
 Reference: [羊了个羊 on TapTap](https://www.taptap.cn/app/238441)

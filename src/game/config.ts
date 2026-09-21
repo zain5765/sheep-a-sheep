@@ -61,26 +61,14 @@ export const MAX_SLOTS = 7;
 export const HOLD_SIZE = 3;
 export const MATCH_SIZE = 3;
 
-/** Region teams for PK + USA (same “your province needs you” idea). */
-export const REGIONS = [
-  // Pakistan
-  'Punjab',
-  'Sindh',
-  'Khyber Pakhtunkhwa',
-  'Balochistan',
-  'Islamabad',
-  'Gilgit-Baltistan',
-  // USA
-  'California',
-  'Texas',
-  'New York',
-  'Florida',
-  'Illinois',
-  'Pennsylvania',
-  'Ohio',
-  'Georgia',
-  'Washington',
-  'Massachusetts',
-] as const;
+export {
+  COUNTRIES,
+  COUNTRY_IDS,
+  findCountryForProvince,
+  parseTeamKey,
+  provincesFor,
+  teamKey,
+  type CountryId,
+  type RegionId,
+} from './countries';
 
-export type RegionId = (typeof REGIONS)[number];
