@@ -1,5 +1,13 @@
 import { computeClickable, generateBoard, shuffleTypes } from './board';
 import {
+  clearChallengeFromUrl,
+  dailyChallengeSeed,
+  isDailyCleared,
+  liveRankBase,
+  markDailyCleared,
+  parseChallengeFromUrl,
+} from './challenge';
+import {
   COUNTRIES,
   HOLD_SIZE,
   LEVELS,
@@ -14,6 +22,7 @@ import { SlotManager } from './slots';
 import type { GameStatus, LevelConfig, Screen, TileData } from './types';
 
 export type PropKind = 'undo' | 'shuffle' | 'remove';
+export type PlayMode = 'normal' | 'daily' | 'challenge';
 
 export interface RankRow {
   region: string;
@@ -41,6 +50,9 @@ export interface GameState {
   region: RegionId | null;
   ranks: RankRow[];
   tryCount: number;
+  mode: PlayMode;
+  dailyCleared: boolean;
+  pendingChallenge: { seed: string; kind: 'daily' | 'friend' } | null;
 }
 
 const COUNTRY_KEY = 'sheep_country';
@@ -90,12 +102,15 @@ export class Game {
   private country: CountryId | null;
   private region: RegionId | null;
   private tryCount = 0;
+  private mode: PlayMode = 'normal';
+  private pendingChallenge: { seed: string; kind: 'daily' | 'friend' } | null = null;
   private listeners = new Set<() => void>();
 
   constructor() {
     const saved = loadSavedTeam();
     this.country = saved.country;
     this.region = saved.region;
+    this.pendingChallenge = parseChallengeFromUrl();
   }
 
   subscribe(fn: () => void): () => void {
@@ -116,13 +131,11 @@ export class Game {
     const country = this.country ?? 'China';
     const provinces = COUNTRIES[country] as readonly RegionId[];
 
-    // Seed a lively board for the selected country
-    const seeded: RankRow[] = provinces.slice(0, 8).map((region, i) => {
+    const seeded: RankRow[] = provinces.slice(0, 12).map((region, i) => {
       const key = teamKey(country, region);
-      const base = 18000 - i * 1400 - (region.length % 7) * 80;
       return {
         region,
-        clears: (map[key] || 0) + Math.max(800, base),
+        clears: (map[key] || 0) + liveRankBase(country, region, i),
       };
     });
 
@@ -131,11 +144,10 @@ export class Game {
       const yours = seeded.find((r) => r.region === this.region);
       if (yours) {
         yours.you = true;
-        yours.clears = (map[key] || 0) + (yours.clears - (map[key] || 0));
       } else {
         seeded.push({
           region: this.region,
-          clears: (map[key] || 0) + 4200,
+          clears: (map[key] || 0) + liveRankBase(this.country, this.region, 6),
           you: true,
         });
       }
@@ -165,6 +177,9 @@ export class Game {
       region: this.region,
       ranks: this.getRanks(),
       tryCount: this.tryCount,
+      mode: this.mode,
+      dailyCleared: isDailyCleared(),
+      pendingChallenge: this.pendingChallenge,
     };
   }
 
@@ -188,6 +203,7 @@ export class Game {
   goMenu(): void {
     this.screen = 'menu';
     this.status = 'menu';
+    this.mode = 'normal';
     this.emit();
   }
 
@@ -197,10 +213,44 @@ export class Game {
     this.emit();
   }
 
+  dismissPendingChallenge(): void {
+    this.pendingChallenge = null;
+    clearChallengeFromUrl();
+    this.emit();
+  }
+
+  acceptPendingChallenge(): boolean {
+    if (!this.pendingChallenge) return false;
+    if (!this.country || !this.region) return false;
+    const { seed, kind } = this.pendingChallenge;
+    this.pendingChallenge = null;
+    clearChallengeFromUrl();
+    if (kind === 'daily') this.startDaily();
+    else this.startChallenge(seed);
+    return true;
+  }
+
   startGame(): void {
+    this.mode = 'normal';
     this.seed = todaySeed();
     this.tryCount = 0;
     this.beginLevel(0);
+  }
+
+  /** Today's hell board — same for everyone (original daily vibe). */
+  startDaily(): void {
+    this.mode = 'daily';
+    this.seed = dailyChallengeSeed();
+    this.tryCount = 0;
+    this.beginLevel(1);
+  }
+
+  /** Friend / shared seed — Level 2 only. */
+  startChallenge(seed: string): void {
+    this.mode = 'challenge';
+    this.seed = seed;
+    this.tryCount = 0;
+    this.beginLevel(1);
   }
 
   private beginLevel(index: number): void {
@@ -243,7 +293,6 @@ export class Game {
 
     const pending = result.pendingClearUids;
     if (pending.length > 0) {
-      // Show tile in tray first; UI will commit clears after pop anim
       this.emit();
       return { ok: true, matched: true, won: false, lost: false, pendingClearUids: pending };
     }
@@ -251,21 +300,29 @@ export class Game {
     return this.finishAfterAdd(result.isFull);
   }
 
-  /** Call after tray match-pop animation. */
   commitMatchClears(): { won: boolean; lost: boolean } {
     this.slots.commitPendingClears();
+    return this.applyEndState();
+  }
+
+  private onWin(): void {
+    if (this.mode === 'daily') markDailyCleared();
+    if ((this.mode !== 'normal' || this.levelIndex >= 1) && this.region && this.country) {
+      const map = loadRanks();
+      const key = teamKey(this.country, this.region);
+      map[key] = (map[key] || 0) + 1;
+      saveRanks(map);
+    }
+  }
+
+  private applyEndState(): { won: boolean; lost: boolean } {
     const remaining = this.tiles.filter((t) => !t.removed && !t.inSlot).length;
     let won = false;
     let lost = false;
     if (remaining === 0 && this.slots.length === 0) {
       this.status = 'won';
       won = true;
-      if (this.levelIndex >= 1 && this.region && this.country) {
-        const map = loadRanks();
-        const key = teamKey(this.country, this.region);
-        map[key] = (map[key] || 0) + 1;
-        saveRanks(map);
-      }
+      this.onWin();
     } else if (this.slots.length >= MAX_SLOTS) {
       this.status = 'lost';
       lost = true;
@@ -287,12 +344,7 @@ export class Game {
     if (remaining === 0 && this.slots.length === 0) {
       this.status = 'won';
       won = true;
-      if (this.levelIndex >= 1 && this.region && this.country) {
-        const map = loadRanks();
-        const key = teamKey(this.country, this.region);
-        map[key] = (map[key] || 0) + 1;
-        saveRanks(map);
-      }
+      this.onWin();
     } else if (isFull || this.slots.length >= MAX_SLOTS) {
       this.status = 'lost';
       lost = true;
@@ -301,7 +353,6 @@ export class Game {
     return { ok: true, matched: false, won, lost, pendingClearUids: [] };
   }
 
-  /** Undo without emit — returns tiles that left the tray (for fly-back). */
   undoLeave(): TileData[] | null {
     if (this.status !== 'playing' || this.undoLeft <= 0 || !this.slots.canUndo()) return null;
     const leaving = this.slots.undo(this.tiles);
@@ -346,6 +397,10 @@ export class Game {
   }
 
   nextLevel(): void {
+    if (this.mode !== 'normal') {
+      this.goMenu();
+      return;
+    }
     if (this.levelIndex < LEVELS.length - 1) this.beginLevel(this.levelIndex + 1);
     else this.goMenu();
   }

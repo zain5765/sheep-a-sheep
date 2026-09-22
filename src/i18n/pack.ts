@@ -24,6 +24,44 @@ export const PACK: Record<string, I18nEntry> = {
   'splash.playing_for': { en: 'Playing for {0}, {1}', zh: '为 {0}（{1}）出战' },
   'splash.start': { en: 'Start Game', zh: '开始游戏' },
   'splash.ranks': { en: 'Province / State clears', zh: '省队通关榜' },
+  'splash.challenge_friend': { en: 'Challenge a friend', zh: '挑战好友' },
+
+  'daily.banner_title': { en: "Today's challenge", zh: '今日挑战' },
+  'daily.banner_sub': {
+    en: 'Same hell board for everyone · {0}',
+    zh: '全网同一关地狱局 · {0}',
+  },
+  'daily.play': { en: 'Play daily', zh: '挑战今日' },
+  'daily.cleared': { en: 'Cleared today ✓', zh: '今日已通关 ✓' },
+  'daily.percent': { en: 'Only ~0.1% clear', zh: '仅约0.1%通关' },
+
+  'challenge.invite_title': { en: 'Friend challenge!', zh: '好友挑战！' },
+  'challenge.invite_body': {
+    en: 'A friend sent you the same board. Pick your team, then accept.',
+    zh: '好友发来同一关卡。先选省队，再接受挑战。',
+  },
+  'challenge.accept': { en: 'Accept challenge', zh: '接受挑战' },
+  'challenge.decline': { en: 'Not now', zh: '暂不' },
+  'challenge.need_team': {
+    en: 'Select country and province first.',
+    zh: '请先选择国家和省份。',
+  },
+
+  'win.daily.title': { en: 'Daily cleared!', zh: '今日挑战通关！' },
+  'win.daily.body': {
+    en: 'You beat today’s board. Challenge a friend with the same seed!',
+    zh: '你过了今日关卡。用同一关卡挑战好友！',
+  },
+  'win.challenge.title': { en: 'Challenge cleared!', zh: '挑战成功！' },
+  'win.challenge.body': {
+    en: 'You cleared the shared board. Share your win!',
+    zh: '你过了好友同关。分享战绩！',
+  },
+  'win.challenge_friend': { en: 'Challenge friend', zh: '挑战好友' },
+  'win.pct': { en: 'Clear rate ~0.1%', zh: '通关率约 0.1%' },
+
+  'mode.daily': { en: 'Daily', zh: '今日' },
+  'mode.challenge': { en: 'Challenge', zh: '挑战' },
 
   'modal.pick_country_title': { en: 'Pick a country first', zh: '请先选择国家' },
   'modal.pick_country_body': {
@@ -132,6 +170,10 @@ export const PACK: Record<string, I18nEntry> = {
     zh: '羊了个羊第2关你过得了吗？仅0.1%通关！',
   },
   'share.dialog': { en: 'Share with friends', zh: '分享给好友' },
+  'share.challenge_text': {
+    en: 'Beat this Sheep a Sheep board — same tiles as me! {0}',
+    zh: '来挑战同一关羊了个羊！和我一样的牌面 {0}',
+  },
 
   // A11y
   'a11y.home': { en: 'Home', zh: '首页' },

@@ -155,6 +155,78 @@ button {
   border-radius: 999px;
 }
 
+.daily-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: min(320px, 100%);
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border: 2px solid rgba(70, 42, 18, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff6e0 0%, #ffe2b0 55%, #ffd08a 100%);
+  color: #3a2614;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  box-shadow: 0 4px 0 rgba(120, 70, 20, 0.18);
+}
+
+.daily-banner strong {
+  font-family: var(--font-brand);
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.daily-banner span {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.daily-banner em {
+  margin-top: 4px;
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #b8431a;
+}
+
+.daily-banner.done {
+  background: linear-gradient(135deg, #e8f6e4, #cfe9c4);
+}
+
+.daily-banner.done em {
+  color: #2f6b2f;
+}
+
+.daily-btn {
+  width: min(280px, 100%);
+}
+
+.mode-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #c45c26;
+  color: #fff8e8;
+  font-size: 0.65rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.mode-pill.challenge {
+  background: #3d6bb3;
+}
+
+.win-pct {
+  display: inline-block;
+  margin-top: 6px;
+  font-weight: 800;
+  color: #b8431a;
+}
+
 .region-label {
   font-size: 0.78rem;
   font-weight: 800;

@@ -33,5 +33,9 @@ npm run android:apk
 - [x] Haptics on native  
 - [x] Country → province / state teams  
 - [x] Farm doodle tile icons + FX + SFX  
+- [x] EN / 简体中文  
+- [x] Daily challenge (date-seeded hell board)  
+- [x] Friend challenge share link (`#c=…`)  
+- [x] Ad revive hook (mock + AdMob-ready)  
 
 Reference: [羊了个羊 on TapTap](https://www.taptap.cn/app/238441)

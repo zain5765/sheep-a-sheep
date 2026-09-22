@@ -13,7 +13,9 @@ import { flockSceneHtml } from './game/flock';
 import { buzz } from './game/haptics';
 import { tileIconHtml } from './game/icons';
 import { sfx } from './game/sfx';
-import { shareGame } from './game/share';
+import { showRewardedAd } from './game/ads';
+import { todaySeed } from './game/rng';
+import { shareChallenge, shareGame } from './game/share';
 import { isMuted, toggleMuted } from './game/settings';
 import { TUTORIAL_STEPS, markTutorialDone, tutBody, tutTitle, tutorialDone } from './game/tutorial';
 import type { TileData } from './game/types';
@@ -34,6 +36,33 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (className) node.className = className;
   if (html !== undefined) node.innerHTML = html;
   return node;
+}
+
+function requireTeam(then: () => void): void {
+  const s = game.getState();
+  if (!s.country) {
+    app.appendChild(
+      modal(t('modal.pick_country_title'), t('modal.pick_country_body'), [
+        { label: t('common.ok'), primary: true, onClick: () => undefined },
+      ]),
+    );
+    return;
+  }
+  if (!s.region) {
+    app.appendChild(
+      modal(t('modal.pick_province_title'), t('modal.pick_province_body'), [
+        { label: t('common.ok'), primary: true, onClick: () => undefined },
+      ]),
+    );
+    return;
+  }
+  then();
+}
+
+function modeBadge(mode: string): string {
+  if (mode === 'daily') return `<span class="mode-pill">${t('mode.daily')}</span>`;
+  if (mode === 'challenge') return `<span class="mode-pill challenge">${t('mode.challenge')}</span>`;
+  return '';
 }
 
 function levelName(index: number): string {
@@ -209,7 +238,7 @@ function render(): void {
   top.innerHTML = `
     <button class="icon-btn" type="button" data-act="home" aria-label="${t('a11y.home')}">←</button>
     <div class="level-badge">
-      <strong>${levelName(state.levelIndex)}</strong>
+      <strong>${levelName(state.levelIndex)}${modeBadge(state.mode)}</strong>
       <span>${levelSub(state.levelIndex)}</span>
     </div>
     <div class="top-right">
@@ -319,29 +348,53 @@ function render(): void {
   }
 
   if (state.status === 'won') {
-    const isLast = state.levelIndex >= 1;
-    shell.appendChild(
-      modal(
-        t(isLast ? 'win.l2.title' : 'win.l1.title'),
-        t(isLast ? 'win.l2.body' : 'win.l1.body'),
-        isLast
-          ? [
-              { label: t('win.again'), primary: true, onClick: () => game.startGame() },
-              { label: t('common.home'), onClick: () => game.goMenu() },
-            ]
-          : [
-              {
-                label: t('win.enter_l2'),
-                primary: true,
-                onClick: () => {
-                  sfx.ui();
-                  game.nextLevel();
-                },
+    const isLast = state.levelIndex >= 1 || state.mode !== 'normal';
+    const dailyWin = state.mode === 'daily';
+    const challengeWin = state.mode === 'challenge';
+    const title = dailyWin
+      ? t('win.daily.title')
+      : challengeWin
+        ? t('win.challenge.title')
+        : t(isLast ? 'win.l2.title' : 'win.l1.title');
+    const body = dailyWin
+      ? t('win.daily.body')
+      : challengeWin
+        ? t('win.challenge.body')
+        : `${t(isLast ? 'win.l2.body' : 'win.l1.body')}${isLast ? `<br><em class="win-pct">${t('win.pct')}</em>` : ''}`;
+
+    const buttons =
+      dailyWin || challengeWin || isLast
+        ? [
+            {
+              label: t('win.challenge_friend'),
+              primary: true,
+              onClick: () => {
+                void shareChallenge(state.seed);
               },
-              { label: t('win.replay_l1'), onClick: () => game.restart() },
-            ],
-      ),
-    );
+            },
+            {
+              label: t('win.again'),
+              onClick: () => {
+                if (dailyWin) game.startDaily();
+                else if (challengeWin) game.startChallenge(state.seed);
+                else game.startGame();
+              },
+            },
+            { label: t('common.home'), onClick: () => game.goMenu() },
+          ]
+        : [
+            {
+              label: t('win.enter_l2'),
+              primary: true,
+              onClick: () => {
+                sfx.ui();
+                game.nextLevel();
+              },
+            },
+            { label: t('win.replay_l1'), onClick: () => game.restart() },
+          ];
+
+    shell.appendChild(modal(title, body, buttons));
   }
 
   if (state.status === 'lost') {
@@ -352,13 +405,19 @@ function render(): void {
               {
                 label: t('lose.ad'),
                 primary: true,
-                onClick: () =>
-                  playRewardedAd(() => {
+                onClick: () => {
+                  void showRewardedAd(app, {
+                    title: t('ad.title'),
+                    body: t('ad.body'),
+                    sheepHtml: tileIconHtml('sheep'),
+                  }).then((res) => {
+                    if (!res.watched) return;
                     game.revive();
                     sfx.revive();
                     void buzz('medium');
                     pulse(document.querySelector('.hold-row'));
-                  }),
+                  });
+                },
               },
               {
                 label: t('lose.share'),
@@ -372,6 +431,12 @@ function render(): void {
               },
             ]
           : []),
+        {
+          label: t('win.challenge_friend'),
+          onClick: () => {
+            void shareChallenge(state.seed);
+          },
+        },
         { label: t('lose.retry'), onClick: () => game.restart() },
         { label: t('common.home'), onClick: () => game.goMenu() },
       ]),
@@ -383,6 +448,9 @@ function render(): void {
 
 function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDivElement {
   const provinces = country ? provincesFor(country) : [];
+  const state = game.getState();
+  const date = todaySeed();
+  const dailyDone = state.dailyCleared;
   const menu = el('div', 'menu splash');
   menu.innerHTML = `
     <div class="splash-field" aria-hidden="true">${flockSceneHtml()}</div>
@@ -392,6 +460,11 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
       </h1>
     </div>
     <div class="splash-ui">
+      <button type="button" class="daily-banner${dailyDone ? ' done' : ''}" data-daily>
+        <strong>${t('daily.banner_title')}</strong>
+        <span>${t('daily.banner_sub', [date])}</span>
+        <em>${dailyDone ? t('daily.cleared') : t('daily.percent')}</em>
+      </button>
       <p class="splash-sub">${t('splash.sub')}</p>
       <p class="region-label">${t('splash.team_need')}</p>
       <label class="region-label" for="country">${t('splash.country')}</label>
@@ -418,6 +491,8 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
           : ''
       }
       <button class="btn play" type="button">${t('splash.start')}</button>
+      <button class="btn ghost daily-btn" type="button" data-daily2>${t('daily.play')}</button>
+      <button class="ghost-link" type="button" data-challenge>${t('splash.challenge_friend')}</button>
       <button class="ghost-link" type="button" data-rank>${t('splash.ranks')}</button>
       <p class="region-label splash-lang-label">${t('settings.language')}</p>
       <div class="lang-row splash-lang" role="group" aria-label="${t('settings.language')}">
@@ -426,6 +501,23 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
       </div>
     </div>
   `;
+
+  const startNormal = () =>
+    requireTeam(() => {
+      game.startGame();
+      sfx.unlock();
+      sfx.startAmbience();
+      sfx.ui();
+    });
+
+  const startDaily = () =>
+    requireTeam(() => {
+      game.startDaily();
+      sfx.unlock();
+      sfx.startAmbience();
+      sfx.ui();
+    });
+
   menu.querySelector<HTMLSelectElement>('#country')!.addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value as CountryId | '';
     if (v) game.setCountry(v);
@@ -434,28 +526,20 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
     const v = (e.target as HTMLSelectElement).value as RegionId | '';
     if (v) game.setRegion(v);
   });
-  menu.querySelector('.play')!.addEventListener('click', () => {
-    const s = game.getState();
-    if (!s.country) {
-      app.appendChild(
-        modal(t('modal.pick_country_title'), t('modal.pick_country_body'), [
-          { label: t('common.ok'), primary: true, onClick: () => undefined },
-        ]),
-      );
-      return;
-    }
-    if (!s.region) {
-      app.appendChild(
-        modal(t('modal.pick_province_title'), t('modal.pick_province_body'), [
-          { label: t('common.ok'), primary: true, onClick: () => undefined },
-        ]),
-      );
-      return;
-    }
-    game.startGame();
-    sfx.unlock();
-    sfx.startAmbience();
+  menu.querySelector('.play')!.addEventListener('click', startNormal);
+  menu.querySelectorAll('[data-daily], [data-daily2]').forEach((btn) => {
+    btn.addEventListener('click', startDaily);
+  });
+  menu.querySelector('[data-challenge]')!.addEventListener('click', () => {
     sfx.ui();
+    requireTeam(() => {
+      const seed = `friend-${todaySeed()}-${Math.floor(Math.random() * 1e6)}`;
+      void shareChallenge(seed).then(() => {
+        game.startChallenge(seed);
+        sfx.unlock();
+        sfx.startAmbience();
+      });
+    });
   });
   menu.querySelector('[data-rank]')!.addEventListener('click', () => {
     sfx.ui();
@@ -469,6 +553,36 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
       setLocale(code);
     });
   });
+
+  if (state.pendingChallenge) {
+    queueMicrotask(() => {
+      app.appendChild(
+        modal(t('challenge.invite_title'), t('challenge.invite_body'), [
+          {
+            label: t('challenge.accept'),
+            primary: true,
+            onClick: () => {
+              if (!game.acceptPendingChallenge()) {
+                app.appendChild(
+                  modal(t('challenge.need_team'), t('challenge.invite_body'), [
+                    { label: t('common.ok'), primary: true, onClick: () => undefined },
+                  ]),
+                );
+                return;
+              }
+              sfx.unlock();
+              sfx.startAmbience();
+            },
+          },
+          {
+            label: t('challenge.decline'),
+            onClick: () => game.dismissPendingChallenge(),
+          },
+        ]),
+      );
+    });
+  }
+
   return menu;
 }
 
@@ -485,7 +599,7 @@ function renderRank(
       ${ranks
         .map(
           (r, i) =>
-            `<li class="${r.you ? 'you' : ''}"><span class="pos">${i + 1}</span><span class="name">${placeLabel(r.region)}</span><span class="score">${r.clears}</span></li>`,
+            `<li class="${r.you ? 'you' : ''}"><span class="pos">${i + 1}</span><span class="name">${placeLabel(r.region)}</span><span class="score">${r.clears.toLocaleString()}</span></li>`,
         )
         .join('')}
     </ol>
@@ -589,38 +703,6 @@ function propButton(key: string, icon: string, left: number, kind: PropKind): HT
     app.appendChild(overlay);
   };
   return btn;
-}
-
-/** Rewarded-style revive gate (countdown UI; plug real SDK later). */
-function playRewardedAd(done: () => void): void {
-  const overlay = el('div', 'modal-overlay');
-  const card = el('div', 'modal ad-modal');
-  card.innerHTML = `
-    <div class="modal-sheep">${tileIconHtml('sheep')}</div>
-    <h2>${t('ad.title')}</h2>
-    <p>${t('ad.body')}</p>
-    <div class="ad-bar"><i></i></div>
-    <div class="ad-sec">5</div>
-  `;
-  overlay.appendChild(card);
-  app.appendChild(overlay);
-  const bar = card.querySelector('.ad-bar > i') as HTMLElement;
-  const sec = card.querySelector('.ad-sec') as HTMLElement;
-  let left = 5;
-  bar.style.width = '0%';
-  requestAnimationFrame(() => {
-    bar.style.transition = 'width 5s linear';
-    bar.style.width = '100%';
-  });
-  const tick = window.setInterval(() => {
-    left -= 1;
-    sec.textContent = String(Math.max(0, left));
-    if (left <= 0) {
-      clearInterval(tick);
-      overlay.remove();
-      done();
-    }
-  }, 1000);
 }
 
 function openSettings(): void {
