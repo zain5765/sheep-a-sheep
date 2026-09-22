@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.sheapasheep.game',
-  appName: 'Sheep a Sheep',
+  appName: 'Cow a Cow',
   webDir: 'dist',
   android: {
     allowMixedContent: true,

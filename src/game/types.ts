@@ -1,5 +1,5 @@
 export type TileType =
-  | 'sheep'
+  | 'cow'
   | 'flower'
   | 'tree'
   | 'grass'

@@ -43,7 +43,7 @@ export function setLocale(code: LocaleCode | string): void {
   current = next;
   setStoredLocale(next);
   document.documentElement.lang = next === ZH ? 'zh-CN' : 'en';
-  document.title = next === ZH ? '羊了个羊' : 'Sheep a Sheep';
+  document.title = next === ZH ? '牛了个牛' : 'Cow a Cow';
   for (const fn of listeners) fn(next);
 }
 
@@ -95,5 +95,5 @@ export function lookupOr(key: string, fallback: string): string {
 /** Apply document lang/title for the stored locale (call once at boot). */
 export function applyDocumentLocale(): void {
   document.documentElement.lang = current === ZH ? 'zh-CN' : 'en';
-  document.title = current === ZH ? '羊了个羊' : 'Sheep a Sheep';
+  document.title = current === ZH ? '牛了个牛' : 'Cow a Cow';
 }

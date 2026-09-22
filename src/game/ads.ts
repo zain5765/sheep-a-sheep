@@ -29,14 +29,14 @@ function getAdMob(): AdMobLike | null {
 /** UI countdown overlay (same feel as original when SDK not wired). */
 export function showMockRewardedAd(
   mount: HTMLElement,
-  ui: { title: string; body: string; sheepHtml: string },
+  ui: { title: string; body: string; cowHtml: string },
 ): Promise<boolean> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
       <div class="modal ad-modal">
-        <div class="modal-sheep">${ui.sheepHtml}</div>
+        <div class="modal-cow">${ui.cowHtml}</div>
         <h2>${ui.title}</h2>
         <p>${ui.body}</p>
         <div class="ad-bar"><i></i></div>
@@ -66,7 +66,7 @@ export function showMockRewardedAd(
 
 export async function showRewardedAd(
   mount: HTMLElement,
-  ui: { title: string; body: string; sheepHtml: string },
+  ui: { title: string; body: string; cowHtml: string },
 ): Promise<AdResult> {
   const unit = rewardUnitId();
   const admob = getAdMob();

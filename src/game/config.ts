@@ -1,8 +1,8 @@
 import type { LevelConfig, TileDef, TileType } from './types';
 
-/** Same farm/sheep icon set style as the viral game — cream tiles like the original. */
+/** Farm/cow icon set — cream tiles like the original match-3. */
 export const TILE_DEFS: Record<TileType, TileDef> = {
-  sheep: { id: 'sheep', label: 'Sheep', emoji: '🐑', color: '#fff8e8' },
+  cow: { id: 'cow', label: 'Cow', emoji: '🐄', color: '#fff8e8' },
   flower: { id: 'flower', label: 'Flower', emoji: '🌸', color: '#fff8e8' },
   tree: { id: 'tree', label: 'Tree', emoji: '🌳', color: '#fff8e8' },
   grass: { id: 'grass', label: 'Grass', emoji: '🌿', color: '#fff8e8' },
@@ -22,7 +22,7 @@ export const TILE_DEFS: Record<TileType, TileDef> = {
 export const TILE_TYPES = Object.keys(TILE_DEFS) as TileType[];
 
 /**
- * Same mission as Sheep a Sheep / 羊了个羊:
+ * Same mission as Cow a Cow / 牛了个牛:
  * Level 1 = kindergarten · Level 2 = ~0.1% clear rate hell
  */
 export const LEVELS: LevelConfig[] = [

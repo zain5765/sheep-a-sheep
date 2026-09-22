@@ -1,4 +1,4 @@
-# Sheep a Sheep
+# Cow a Cow
 
 Same core game as the viral stack-match hit: Level 1 easy → Level 2 hell, 7-slot match-3, share-for-props, ad revive.
 
@@ -12,7 +12,7 @@ npm run dev
 
 ## Android
 
-`release/SheepASheep-debug.apk`
+`release/CowACow-debug.apk`
 
 ```bash
 nvm use 22

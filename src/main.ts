@@ -409,7 +409,7 @@ function render(): void {
                   void showRewardedAd(app, {
                     title: t('ad.title'),
                     body: t('ad.body'),
-                    sheepHtml: tileIconHtml('sheep'),
+                    cowHtml: tileIconHtml('cow'),
                   }).then((res) => {
                     if (!res.watched) return;
                     game.revive();
@@ -453,51 +453,63 @@ function renderMenu(country: CountryId | null, region: RegionId | null): HTMLDiv
   const dailyDone = state.dailyCleared;
   const menu = el('div', 'menu splash');
   menu.innerHTML = `
-    <div class="splash-field" aria-hidden="true">${flockSceneHtml()}</div>
-    <div class="splash-brand">
-      <h1 class="brand-title">
-        <span class="brand-cn">${t('brand.title')}</span>
-      </h1>
+    <div class="splash-hero">
+      <div class="splash-field" aria-hidden="true">${flockSceneHtml()}</div>
+      <div class="splash-brand">
+        <h1 class="brand-title">
+          <span class="brand-cn">${t('brand.title')}</span>
+        </h1>
+      </div>
     </div>
     <div class="splash-ui">
-      <button type="button" class="daily-banner${dailyDone ? ' done' : ''}" data-daily>
-        <strong>${t('daily.banner_title')}</strong>
-        <span>${t('daily.banner_sub', [date])}</span>
-        <em>${dailyDone ? t('daily.cleared') : t('daily.percent')}</em>
-      </button>
-      <p class="splash-sub">${t('splash.sub')}</p>
-      <p class="region-label">${t('splash.team_need')}</p>
-      <label class="region-label" for="country">${t('splash.country')}</label>
-      <select id="country" class="region-select" aria-label="${t('a11y.country')}">
-        <option value="">${t('splash.pick_country')}</option>
-        ${COUNTRY_IDS.map(
-          (c) =>
-            `<option value="${c}" ${country === c ? 'selected' : ''}>${placeLabel(c)}</option>`,
-        ).join('')}
-      </select>
-      <label class="region-label" for="province">${t('splash.province')}</label>
-      <select id="province" class="region-select" aria-label="${t('a11y.province')}" ${country ? '' : 'disabled'}>
-        <option value="">${country ? t('splash.pick_province') : t('splash.select_country_first')}</option>
-        ${provinces
-          .map(
-            (p) =>
-              `<option value="${p}" ${region === p ? 'selected' : ''}>${placeLabel(p)}</option>`,
-          )
-          .join('')}
-      </select>
-      ${
-        country && region
-          ? `<div class="team-bar">${t('splash.playing_for', [placeLabel(region), placeLabel(country)])}</div>`
-          : ''
-      }
-      <button class="btn play" type="button">${t('splash.start')}</button>
-      <button class="btn ghost daily-btn" type="button" data-daily2>${t('daily.play')}</button>
-      <button class="ghost-link" type="button" data-challenge>${t('splash.challenge_friend')}</button>
-      <button class="ghost-link" type="button" data-rank>${t('splash.ranks')}</button>
-      <p class="region-label splash-lang-label">${t('settings.language')}</p>
-      <div class="lang-row splash-lang" role="group" aria-label="${t('settings.language')}">
-        <button type="button" class="lang-btn${getLocale() === 'en' ? ' active' : ''}" data-lang="en">${t('settings.lang.en')}</button>
-        <button type="button" class="lang-btn${getLocale() === 'zh' ? ' active' : ''}" data-lang="zh">${t('settings.lang.zh')}</button>
+      <div class="splash-ui-main">
+        <button type="button" class="daily-banner${dailyDone ? ' done' : ''}" data-daily>
+          <strong>${t('daily.banner_title')}</strong>
+          <span>${t('daily.banner_sub', [date])} · <em>${dailyDone ? t('daily.cleared') : t('daily.percent')}</em></span>
+        </button>
+        <p class="splash-sub">${t('splash.sub')}</p>
+        <div class="region-grid">
+          <label class="region-field">
+            <span class="region-label">${t('splash.country')}</span>
+            <select id="country" class="region-select" aria-label="${t('a11y.country')}">
+              <option value="">${t('splash.pick_country')}</option>
+              ${COUNTRY_IDS.map(
+                (c) =>
+                  `<option value="${c}" ${country === c ? 'selected' : ''}>${placeLabel(c)}</option>`,
+              ).join('')}
+            </select>
+          </label>
+          <label class="region-field">
+            <span class="region-label">${t('splash.province')}</span>
+            <select id="province" class="region-select" aria-label="${t('a11y.province')}" ${country ? '' : 'disabled'}>
+              <option value="">${country ? t('splash.pick_province') : t('splash.select_country_first')}</option>
+              ${provinces
+                .map(
+                  (p) =>
+                    `<option value="${p}" ${region === p ? 'selected' : ''}>${placeLabel(p)}</option>`,
+                )
+                .join('')}
+            </select>
+          </label>
+        </div>
+        ${
+          country && region
+            ? `<div class="team-bar">${t('splash.playing_for', [placeLabel(region), placeLabel(country)])}</div>`
+            : `<p class="region-hint">${t('splash.team_need')}</p>`
+        }
+      </div>
+      <div class="splash-spacer" aria-hidden="true"></div>
+      <div class="splash-ui-bottom">
+        <button class="btn play" type="button">${t('splash.start')}</button>
+        <div class="splash-foot">
+          <button class="splash-action" type="button" data-daily2>${t('daily.play')}</button>
+          <button class="splash-action" type="button" data-challenge>${t('splash.challenge_friend')}</button>
+          <button class="splash-action" type="button" data-rank>${t('splash.ranks')}</button>
+        </div>
+        <div class="lang-row splash-lang" role="group" aria-label="${t('settings.language')}">
+          <button type="button" class="lang-btn${getLocale() === 'en' ? ' active' : ''}" data-lang="en">${t('settings.lang.en')}</button>
+          <button type="button" class="lang-btn${getLocale() === 'zh' ? ' active' : ''}" data-lang="zh">${t('settings.lang.zh')}</button>
+        </div>
       </div>
     </div>
   `;
@@ -592,7 +604,7 @@ function renderRank(
   const country = game.getState().country;
   const page = el('div', 'menu rank-page');
   page.innerHTML = `
-    <div class="sheep-bubble small">${tileIconHtml('sheep')}</div>
+    <div class="cow-bubble small">${tileIconHtml('cow')}</div>
     <h1>${t('rank.title')}</h1>
     <p class="tagline">${country ? t('rank.sub', [placeLabel(country)]) : t('rank.sub_default')}</p>
     <ol class="rank-list">
@@ -711,7 +723,7 @@ function openSettings(): void {
   const overlay = el('div', 'modal-overlay');
   const card = el('div', 'modal');
   card.innerHTML = `
-    <div class="modal-sheep">${tileIconHtml('sheep')}</div>
+    <div class="modal-cow">${tileIconHtml('cow')}</div>
     <h2>${t('settings.title')}</h2>
     <p>${t('settings.hint')}</p>
     <div class="lang-row" role="group" aria-label="${t('settings.language')}">
@@ -772,7 +784,7 @@ function modal(
 ): HTMLDivElement {
   const overlay = el('div', 'modal-overlay');
   const card = el('div', 'modal');
-  card.innerHTML = `<div class="modal-sheep">${tileIconHtml('sheep')}</div><h2>${title}</h2><p>${body}</p>`;
+  card.innerHTML = `<div class="modal-cow">${tileIconHtml('cow')}</div><h2>${title}</h2><p>${body}</p>`;
   const actions = el('div', 'modal-actions');
   for (const b of buttons) {
     const btn = el('button', b.primary ? 'btn primary' : 'btn ghost', b.label);

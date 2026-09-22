@@ -1,4 +1,4 @@
-/** Sheep a Sheep UI strings — same pattern as Farmverse I18nPack: key → { en, zh }. */
+/** Cow a Cow UI strings — same pattern as Farmverse I18nPack: key → { en, zh }. */
 
 export type LocaleCode = 'en' | 'zh';
 
@@ -6,8 +6,8 @@ export type I18nEntry = { en: string; zh: string };
 
 export const PACK: Record<string, I18nEntry> = {
   // Brand — one title per locale (no mixed script on splash)
-  'brand.title': { en: 'Sheep a Sheep', zh: '羊了个羊' },
-  'brand.sub': { en: 'Sheep a Sheep', zh: '羊了个羊' },
+  'brand.title': { en: 'Cow a Cow', zh: '牛了个牛' },
+  'brand.sub': { en: 'Cow a Cow', zh: '牛了个牛' },
   'splash.sub': {
     en: 'Level 1 kindergarten · Level 2 only 0.1% clear',
     zh: '第1关上幼儿园 · 第2关仅0.1%通关',
@@ -105,7 +105,7 @@ export const PACK: Record<string, I18nEntry> = {
   'win.l2.title': { en: 'Cleared Level 2!', zh: '通关！' },
   'win.l2.body': {
     en: 'Only ~0.1% of players make it here. Challenge a friend!',
-    zh: '仅约0.1%的羊能到这里。去挑战朋友！',
+    zh: '仅约0.1%的牛能到这里。去挑战朋友！',
   },
   'win.again': { en: 'Play again', zh: '再来一局' },
   'win.enter_l2': { en: 'Enter Level 2', zh: '进入第2关' },
@@ -164,15 +164,15 @@ export const PACK: Record<string, I18nEntry> = {
   'tut.skip': { en: 'Skip', zh: '跳过' },
 
   // Share
-  'share.title': { en: 'Sheep a Sheep', zh: '羊了个羊' },
+  'share.title': { en: 'Cow a Cow', zh: '牛了个牛' },
   'share.text': {
-    en: 'Can you clear Level 2 of Sheep a Sheep? Only 0.1% can!',
-    zh: '羊了个羊第2关你过得了吗？仅0.1%通关！',
+    en: 'Can you clear Level 2 of Cow a Cow? Only 0.1% can!',
+    zh: '牛了个牛第2关你过得了吗？仅0.1%通关！',
   },
   'share.dialog': { en: 'Share with friends', zh: '分享给好友' },
   'share.challenge_text': {
-    en: 'Beat this Sheep a Sheep board — same tiles as me! {0}',
-    zh: '来挑战同一关羊了个羊！和我一样的牌面 {0}',
+    en: 'Beat this Cow a Cow board — same tiles as me! {0}',
+    zh: '来挑战同一关牛了个牛！和我一样的牌面 {0}',
   },
 
   // A11y
@@ -182,7 +182,7 @@ export const PACK: Record<string, I18nEntry> = {
   'a11y.province': { en: 'Province or State', zh: '省份或州' },
 
   // Tile a11y labels
-  'tile.sheep': { en: 'Sheep', zh: '羊' },
+  'tile.cow': { en: 'Cow', zh: '牛' },
   'tile.flower': { en: 'Flower', zh: '花' },
   'tile.tree': { en: 'Tree', zh: '树' },
   'tile.grass': { en: 'Grass', zh: '草' },
